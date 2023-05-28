@@ -1,0 +1,1139 @@
+
+
+
+```{r}
+my_data <- read.csv(file = "rotten_tomatoes_critic_reviews.csv")
+my_data2 <- read.csv(file = "rotten_tomatoes_movies.csv")
+```
+
+```{r certified_fresh-fresh-rotten histogram}
+library(ggplot2)
+rotten <- sum(my_data2$tomatometer_status == "Rotten")
+fresh <- sum(my_data2$tomatometer_status == "Fresh")
+certified_fresh <- sum(my_data2$tomatometer_status == "Certified-Fresh")
+
+tomato_labels <- c(rotten,fresh,certified_fresh)
+tomato_names <- c("rotten","fresh","certified fresh")
+tomato_frame <- data.frame(count = tomato_labels,labels = tomato_names)
+ggplot(data=tomato_frame, aes(y=count,x=labels)) + 
+  geom_histogram(stat="identity")
+
+
+```
+```{r movie info lengths}
+#install.packages("ds4psy")
+library(ds4psy)
+movie_descriptions <- my_data2$movie_info
+word_counts <- rep(NA,length(movie_descriptions))
+for (i in 1:length(movie_descriptions)){
+  #temp <- strsplit(movie_descriptions[i],c(' ', ',' , ':' , ';' , '[a-z]-[a-z]', '?', '.' ,' \\(' , ' \\)' , '\\"'))
+  #temp <- strsplit(movie_descriptions[i],'\\W')
+  temp <- text_to_words(movie_descriptions[i])
+  
+  word_counts[i] <- length(temp)
+}
+
+hist(word_counts)
+```
+
+```{r audience higher critic higher}
+#create audience and critic higher binary variable
+my_data2$audience_higher <- (my_data2$tomatometer_rating < my_data2$audience_rating)
+my_data2$critic_higher <- (my_data2$tomatometer_rating > my_data2$audience_rating)
+
+my_data2 <- na.omit(my_data2)
+
+audcritdiff <- abs(my_data2$tomatometer_rating - my_data2$audience_rating)
+# my_data2$low_diff <- ((audcritdiff>5) & (audcritdiff<10))
+# 
+# my_data2$moderate_diff <- ((10<=audcritdiff) & (audcritdiff < 15))
+# 
+# my_data2$high_diff <- (15<= audcritdiff)
+
+my_data2$low_diff <- audcritdiff <10
+my_data2$med_diff <- (audcritdiff >10 & audcritdiff <20)
+my_data2$high_diff <- audcritdiff >20
+
+low_diff <- sum(my_data2$low_diff)
+med_diff <- sum(my_data2$moderate_diff)
+high_diff <- sum(my_data2$high_diff)
+
+diffs <- c(low_diff,med_diff, high_diff)
+namediffs <- c("Less than 10","Between 10-20","Higher than 20")
+
+diff.frame <- data.frame(values=diffs,group=namediffs)
+
+ggplot(data=diff.frame,aes(x=group,y=values))+
+  geom_histogram(stat="identity")
+
+diff <- tomatodata$audience_rating - tomatodata$tomatometer_rating
+
+ggplot()+
+  geom_bar(x=diff)
+```
+```{r differences scatter}
+tomatoadata2 <- tomatoadata
+# true_differences <- my_data2$tomatometer_rating - my_data2$audience_rating
+# loweraud <- rep("Low Difference",low_diff)
+# medaud <- rep("Medium Difference",med_diff)
+# highaud <- rep("High Difference",high_diff)
+# 
+# 
+# lowdiff <- (true_differences <10 | true_differences > -10)
+# meddiff <- (true_differences >=10 & true_differences<20) | (true_differences > -20 & true_differences<= -10)
+# highdiff <- (true_differences >= 20 | true_differences <= -20)
+# 
+# 
+# aud <- c(loweraud,highaud,medaud)
+# 
+# scatterframe <- data.frame(group=aud,counts=true_differences)
+# 
+# ggplot(data=scatterframe,aes(x=group,y=counts),col=group) + 
+#   geom_point(alpha=0.5)
+
+true_differences <- data.frame(matrix(NA,ncol=2,nrow=14437))
+colnames(true_differences) <- c("True_Difference","Diff_indicator")
+
+true_differences$True_Difference <- tomatoadata2$tomatometer_rating - tomatoadata2$audience_rating
+
+for (i in 1:length(true_differences$True_Difference)){
+  if(abs(true_differences$True_Difference[i]) < 10 ){
+    true_differences$Diff_indicator[i] = "low, <10"
+  }
+  else if(abs(true_differences$True_Difference[i]) >= 10 & abs(true_differences$True_Difference[i]) < 20){
+    true_differences$Diff_indicator[i] = "medium, 10-20"
+  }
+  else if(abs(true_differences$True_Difference[i]) >= 20){
+    true_differences$Diff_indicator[i] = "high, >20"
+  }
+}
+
+tomatoadata2$diff <- true_differences$Diff_indicator
+
+#true_differences$factor <- as.factor(true_differences$Diff_indicator)
+
+ggplot(data = true_differences) +
+  geom_point(aes(x=1:nrow(true_differences),y=True_Difference,col=Diff_indicator),alpha=0.5)+
+  xlab("")+ylab("Difference of critic rating vs audience rating") + ggtitle("Critic vs. Audience Score")+
+  labs(col="Difference Level")
+
+```
+```{r better scatterplot}
+library(ggplot2)
+#histogram of audience - critic scores
+hist(true_differences$True_Difference,main="Histogram of Audience-Critic Scores",xlab="Audience-Critic Score",ylab="Frequency",breaks=30,xaxp=c(-100,100,10))
+ggplot(true_differences,aes(x = True_Difference))+
+  geom_bar(colour="black",fill="white",)+
+  stat_function(fun=dnorm, args = list(mean=mean(true_differences$True_Difference),sd=sd(true_differences$True_Difference)),colour="red")+
+  labs(x="Difference in Audience vs. Critic Score",y="Density",title="Histogram of Audience - Critic scores")
+```
+
+
+```{r}
+#run once 
+
+#tomato_frame$Action <- "Action" %in% (strsplit(my_data2$genres, ","))
+#tempstring <- text_to_words(my_data2$genres[1])
+# tempvector <- unlist(strsplit(my_data2$genres[1], ","))
+# 
+# tempvector[1]
+# 
+# "Action"
+for(i in 1:length(my_data2$genres)){
+  tempvector <- unlist(strsplit(my_data2$genres[i], ", "))
+  my_data2$Action_Adventure[i] <- 1 * (any("Action & Adventure" == tempvector))
+  my_data2$Art_House_International[i] <- 1 * (any("Art House & International" == tempvector))
+  my_data2$Classics[i] <- 1 * (any("Classics" == tempvector))
+  my_data2$Comedy[i] <- 1 * (any("Comedy" == tempvector))
+  my_data2$Drama[i] <- 1 * (any("Drama" == tempvector))
+  my_data2$Horror[i] <- 1 * (any("Horror" == tempvector))
+  my_data2$Science_Fiction_Fantasy[i] <- 1 * (any("Science Fiction & Fantasy" == tempvector))
+  my_data2$Kids_Family[i] <- 1 * (any("Kids & Family" == tempvector))
+  my_data2$Romance[i] <- 1 * (any("Romance" == tempvector))
+  my_data2$Mystery_Suspense[i] <- 1 * (any("Mystery & Suspense" == tempvector))
+  my_data2$Documentary[i] <- 1 * (any("Documentary" == tempvector))
+  my_data2$Cult_Movies[i] <- 1 * (any("Cult Movies" == tempvector))
+  my_data2$Television[i] <- 1 * (any("Television" == tempvector))
+  my_data2$Gay_Lesbian[i] <- 1 * (any("Gay & Lesbian" == tempvector))
+  my_data2$Musical_Performing_Arts[i] <- 1 * (any("Musical & Performing Arts" == tempvector))
+  my_data2$Special_Interest[i] <- 1 * (any("Special Interest" == tempvector))
+  my_data2$Faith_Spirituality[i] <- 1 * (any("Faith & Spirituality" == tempvector))
+}
+
+tomatodata1 <- na.omit(my_data2)
+tomatodata1 <- subset(tomatodata1, select = -c(critics_consensus))
+```
+
+```{r sentiment column pos vs neg score}
+#install.packages("tidytext")
+library(ds4psy)
+library(tidytext)
+library(tidyr)
+library(dplyr)
+#get_sentiments(my_data2$movie_info[1])
+
+# for (i in 1:length(movie_descriptions)){
+#   
+#   temp <- text_to_words(movie_descriptions[i])
+#   sent_score <- temp %>% inner_join(sentiment_values) %>% summarise(sentiment=sum(value))
+#   
+# }
+for(i in 1:17168){
+  sentiment_values <- get_sentiments("afinn")
+  temp <- text_to_words(movie_descriptions[i])
+  #print(length(temp))
+  if(length(temp) > 0){
+    word.frame <- data.frame(temp)
+    colnames(word.frame) <- c("word")
+    sent_score <- word.frame %>% inner_join(sentiment_values)
+    #print(sum(sent_score$value))
+    tomatodata$sentiment_score[i] <- sum(sent_score$value)
+  }
+  else{
+    tomatodata$sentiment_score[i] <- NA
+  }
+  
+}
+
+```
+
+```{r}
+tomatodata1 <- na.omit(my_data2)
+tomatodata1 <- subset(tomatodata1, select = -c(critics_consensus))
+tomatodata <- tomatodata1[!apply(is.na(tomatodata1) | tomatodata1 == "", 1, any),]
+```
+
+```{r sentiment analysis data}
+#install.packages("syuzhet")
+
+library(syuzhet)
+
+for(i in 1:length(tomatodata$movie_info)){
+  s <- get_nrc_sentiment(text_to_words(tomatodata$movie_info[i]))
+  tomatodata$anger[i] <- sum(s$anger)
+  tomatodata$anticipation[i] <- sum(s$anticipation)
+  tomatodata$disgust[i] <- sum(s$disgust)
+  tomatodata$fear[i] <- sum(s$fear)
+  tomatodata$joy[i] <- sum(s$joy)
+  tomatodata$sadness[i] <- sum(s$sadness)
+  tomatodata$surprise[i] <- sum(s$surprise)
+  tomatodata$trust[i] <- sum(s$trust)
+  tomatodata$negative[i] <- sum(s$negative)
+  tomatodata$positive[i] <- sum(s$positive)
+}
+```
+```{r}
+for (i in 13279:14437){
+  s <- get_nrc_sentiment(text_to_words(tomatodata$movie_info[i]))
+  tomatodata$anger[i] <- sum(s$anger)
+  tomatodata$anticipation[i] <- sum(s$anticipation)
+  tomatodata$disgust[i] <- sum(s$disgust)
+  tomatodata$fear[i] <- sum(s$fear)
+  tomatodata$joy[i] <- sum(s$joy)
+  tomatodata$sadness[i] <- sum(s$sadness)
+  tomatodata$surprise[i] <- sum(s$surprise)
+  tomatodata$trust[i] <- sum(s$trust)
+  tomatodata$negative[i] <- sum(s$negative)
+  tomatodata$positive[i] <- sum(s$positive)
+}
+```
+
+```{r knn no genre}
+library(class)
+set.seed(472)
+tomatodata <- tomatoadata2
+tomatodata$original_release_date <- as.Date(tomatodata$original_release_date)
+tomatodata_train <- tomatodata[tomatodata$original_release_date<"2019-01-01",]
+tomatodata_test <- tomatodata[tomatodata$original_release_date>="2019-01-01",]
+
+train <- tomatodata_train[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                            "trust","negative","positive")]
+test <- tomatodata_test[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                          "trust","negative","positive")]
+
+train_target <- tomatodata_train[,"audience_higher"]
+test_target <- tomatodata_test[,"audience_higher"]
+
+
+pr <- knn(train,test,cl=train_target,k=9)
+tab <- table(pr,test_target)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab)
+sen <- tab[2,2]/(tab[2,2]+tab[1,2])
+spec <- tab[1,1]/(tab[1,1]+tab[2,1])
+train_rat <- (sum(train_target==TRUE)/(length(train_target)))
+test_rat <- (sum(test_target==TRUE)/(length(test_target)))
+#ran <- sample(1:nrow(tomatodata),0.9*nrow(tomatodata))
+```
+
+
+```{r knn with horror}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train2 <- tomatodata_train %>% filter(Horror == 1)
+
+tomatodata_test2 <- tomatodata_test %>% filter(Horror == 1)
+
+train2 <- tomatodata_train2[c("anger","anticipation","disgust","fear","joy","sadness","surprise"
+                              ,"trust","negative","positive")]
+test2 <- tomatodata_test2[c("anger","anticipation","disgust","fear","joy","sadness","surprise"
+                            ,"trust","negative","positive")]
+
+train_target2 <- tomatodata_train2[,"audience_higher"]
+test_target2 <- tomatodata_test2[,"audience_higher"]
+
+
+pr2 <- knn(train2,test2,cl=train_target2,k=2)
+tab2 <- table(pr2,test_target2)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab2)
+sen2 <- tab2[2,2]/(tab2[2,2]+tab2[1,2])
+spec2 <- tab2[1,1]/(tab2[1,1]+tab2[2,1])
+train_rat2 <- (sum(train_target2==TRUE)/(length(train_target2)))
+test_rat2 <- (sum(test_target2==TRUE)/(length(test_target2)))
+```
+```{r sentiment with science fiction / fantasy}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train3 <- tomatodata_train %>% filter(Science_Fiction_Fantasy == 1)
+
+tomatodata_test3 <- tomatodata_test %>% filter(Science_Fiction_Fantasy == 1)
+
+train3 <- tomatodata_train3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                              "trust","negative","positive")]
+test3 <- tomatodata_test3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                            "trust","negative","positive")]
+
+train_target3 <- tomatodata_train3[,"audience_higher"]
+test_target3 <- tomatodata_test3[,"audience_higher"]
+
+
+pr3 <- knn(train3,test3,cl=train_target3,k=7)
+tab3 <- table(pr3,test_target3)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab3)
+sen3 <- tab3[2,2]/(tab3[2,2]+tab3[1,2])
+spec3 <- tab3[1,1]/(tab3[1,1]+tab3[2,1])
+train_rat3 <- (sum(train_target3==TRUE)/(length(train_target3)))
+test_rat3 <- (sum(test_target3==TRUE)/(length(test_target3)))
+```
+
+```{r sentiment with run time and fiction}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train4 <- tomatodata_train %>% filter(Science_Fiction_Fantasy == 1)
+
+tomatodata_test4 <- tomatodata_test %>% filter(Science_Fiction_Fantasy == 1)
+
+train4 <- tomatodata_train4[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test4 <- tomatodata_test4[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target4 <- tomatodata_train4[,"audience_higher"]
+test_target4 <- tomatodata_test4[,"audience_higher"]
+
+
+pr4 <- knn(train4,test4,cl=train_target4,k=8)
+tab4 <- table(pr4,test_target4)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab4)
+sen4 <- tab4[2,2]/(tab4[2,2]+tab4[1,2])
+spec4 <- tab4[1,1]/(tab4[1,1]+tab4[2,1])
+train_rat4 <- (sum(train_target4==TRUE)/(length(train_target4)))
+test_rat4 <- (sum(test_target4==TRUE)/(length(test_target4)))
+```
+
+```{r knn with action/adventure}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train5 <- tomatodata_train %>% filter(Action_Adventure == 1)
+
+tomatodata_test5 <- tomatodata_test %>% filter(Action_Adventure == 1)
+
+train5 <- tomatodata_train5[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                              "trust","negative","positive")]
+test5 <- tomatodata_test5[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                            "trust","negative","positive")]
+
+train_target5 <- tomatodata_train5[,"audience_higher"]
+test_target5 <- tomatodata_test5[,"audience_higher"]
+
+
+pr5 <- knn(train5,test5,cl=train_target5,k=1)
+tab5 <- table(pr5,test_target5)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab5)
+sen5 <- tab5[2,2]/(tab5[2,2]+tab5[1,2])
+spec5 <- tab5[1,1]/(tab5[1,1]+tab5[2,1])
+train_rat5 <- (sum(train_target5==TRUE)/(length(train_target5)))
+test_rat5 <- (sum(test_target5==TRUE)/(length(test_target5)))
+```
+
+```{r use genre in knn}
+library(dplyr)
+library(class)
+tomatodata_train6 <- tomatodata_train 
+
+tomatodata_test6 <- tomatodata_test 
+
+train6 <- tomatodata_train6[,27:50]
+test6 <- tomatodata_test6[,27:50]
+
+train_target6 <- tomatodata_train6[,"audience_higher"]
+test_target6 <- tomatodata_test6[,"audience_higher"]
+
+
+pr6 <- knn(train6,test6,cl=train_target6,k=11)
+tab6 <- table(pr6,test_target6)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab6)
+sen6 <- tab6[2,2]/(tab6[2,2]+tab6[1,2])
+spec6 <- tab6[1,1]/(tab6[1,1]+tab6[2,1])
+```
+
+```{r knn sentiment with special interest}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train7 <- tomatodata_train %>% filter(Special_Interest == 1)
+
+tomatodata_test7 <- tomatodata_test %>% filter(Special_Interest == 1)
+
+train7 <- tomatodata_train7[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test7 <- tomatodata_test7[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target7 <- tomatodata_train7[,"audience_higher"]
+test_target7 <- tomatodata_test7[,"audience_higher"]
+
+pr7 <- knn(train7,test7,cl=train_target7,k=11)
+tab7 <- table(pr7,test_target7)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab7)
+# sen <- tab[2,2]/(tab[2,2]+tab[1,2])
+# spec <- tab[1,1]/(tab[1,1]+tab[2,1])
+```
+
+```{r knn sentiment with mystery}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train8 <- tomatodata_train %>% filter(Mystery_Suspense == 1)
+
+tomatodata_test8 <- tomatodata_test %>% filter(Mystery_Suspense == 1)
+
+train8 <- tomatodata_train8[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                              "trust","negative","positive")]
+test8 <- tomatodata_test8[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                            "trust","negative","positive")]
+
+train_target8 <- tomatodata_train8[,"audience_higher"]
+test_target8 <- tomatodata_test8[,"audience_higher"]
+
+pr8 <- knn(train8,test8,cl=train_target8,k=6)
+tab8 <- table(pr8,test_target8)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab8)
+sen8 <- tab8[2,2]/(tab8[2,2]+tab8[1,2])
+spec8 <- tab8[1,1]/(tab8[1,1]+tab8[2,1])
+train_rat8 <- (sum(train_target8==TRUE)/(length(train_target8)))
+test_rat8 <- (sum(test_target8==TRUE)/(length(test_target8)))
+```
+
+```{r knn sentiment with documentary}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train9 <- tomatodata_train %>% filter(Documentary == 1)
+
+tomatodata_test9 <- tomatodata_test %>% filter(Documentary == 1)
+
+train9 <- tomatodata_train9[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                              "trust","negative","positive")]
+test9 <- tomatodata_test9[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                            "trust","negative","positive")]
+
+train_target9 <- tomatodata_train9[,"audience_higher"]
+test_target9 <- tomatodata_test9[,"audience_higher"]
+
+pr9 <- knn(train9,test9,cl=train_target9,k=1)
+tab9 <- table(pr9,test_target9)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab9)
+sen9 <- tab9[2,2]/(tab9[2,2]+tab9[1,2])
+spec9 <- tab9[1,1]/(tab9[1,1]+tab9[2,1])
+train_rat9 <- (sum(train_target9==TRUE)/(length(train_target9)))
+test_rat9 <- (sum(test_target9==TRUE)/(length(test_target9)))
+```
+
+```{r knn sentiment with art house}
+library(dplyr)
+library(class)
+set.seed(472)
+tomatodata_train10 <- tomatodata_train %>% filter(Art_House_International == 1)
+
+tomatodata_test10 <- tomatodata_test %>% filter(Art_House_International == 1)
+
+train10 <- tomatodata_train10[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                "trust","negative","positive")]
+test10 <- tomatodata_test10[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                              "trust","negative","positive")]
+
+train_target10 <- tomatodata_train10[,"audience_higher"]
+test_target10 <- tomatodata_test10[,"audience_higher"]
+
+pr10 <- knn(train10,test10,cl=train_target10,k=4)
+tab10 <- table(pr10,test_target10)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab10)
+sen10 <- tab10[2,2]/(tab10[2,2]+tab10[1,2])
+spec10 <- tab10[1,1]/(tab10[1,1]+tab10[2,1])
+train_rat10 <- (sum(train_target10==TRUE)/(length(train_target10)))
+test_rat10 <- (sum(test_target10==TRUE)/(length(test_target10)))
+```
+
+```{r sentiment with significant genres}
+library(dplyr)
+library(class)
+tomatodata_train11 <- tomatodata_train %>% filter(Art_House_International == 1 | Documentary == 1 | Horror == 1 | Mystery_Suspense == 1 | Science_Fiction_Fantasy == 1)
+
+tomatodata_test11 <- tomatodata_test %>% filter(Art_House_International == 1 | Documentary == 1 | Horror == 1 | Mystery_Suspense == 1 | Science_Fiction_Fantasy == 1)
+
+train11 <- tomatodata_train11[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test11 <- tomatodata_test11[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target11 <- tomatodata_train11[,"audience_higher"]
+test_target11 <- tomatodata_test11[,"audience_higher"]
+
+pr11 <- knn(train11,test11,cl=train_target11,k=6)
+tab11 <- table(pr11,test_target11)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab11)
+sen11 <- tab11[2,2]/(tab11[2,2]+tab11[1,2])
+spec11 <- tab11[1,1]/(tab11[1,1]+tab11[2,1])
+```
+
+```{r table graphic of knn predictions}
+# install.packages("kableExtra")
+library(kableExtra)
+
+knnpreds <- matrix(c(accuracy(tab),accuracy(tab5),accuracy(tab10), accuracy(tab9),accuracy(tab4),accuracy(tab2), accuracy(tab8),
+              sen,sen5,sen10,sen9,sen4,sen2,sen8,
+              spec,spec5,spec10,spec9,spec4,spec2,spec8,
+              train_rat,train_rat5,train_rat10,train_rat9,train_rat4,train_rat2,train_rat8,
+              test_rat,test_rat5,test_rat10,test_rat9,test_rat4,test_rat2,test_rat8),
+                
+                   ncol=5,nrow=7)
+rownames(knnpreds) <- c("No Genre", "Action/Adv","Art House/Intl", "Documentary", "Fiction", "Horror","Mystery")
+colnames(knnpreds) <- c("Accuracy","Sensitivity","Specificity","Train_Ratio","Test_Ratio")
+
+knntable <- as.table(knnpreds)
+
+knntable %>%
+  kbl(caption = "KNN Sentiment Analysis, Predicting Audience Higher or Lower for 2019 or later movies",digits=2) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+```{r roc curve}
+install.packages("pROC")
+library(pROC)
+
+```
+
+```{r knn for difference classifier}
+library(class)
+set.seed(11111)
+
+tomatoadata2$original_release_date <- as.Date(tomatodata$original_release_date)
+tomatoadata2_train <- tomatoadata2[tomatodata$original_release_date<"2019-01-01",]
+tomatoadata2_test <- tomatoadata2[tomatodata$original_release_date>="2019-01-01",]
+
+
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+traina <- tomatoadata2_train[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+testa <- tomatoadata2_test[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_targeta <- tomatoadata2_train[,"diff"]
+test_targeta <- tomatoadata2_test[,"diff"]
+
+
+pra <- knn(traina,testa,cl=train_targeta,k=11)
+taba <- table(pra,test_targeta)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(taba)
+sena <- taba[2,2]/(taba[2,2]+taba[1,2])
+speca <- taba[1,1]/(taba[1,1]+taba[2,1])
+
+#ran <- sample(1:nrow(tomatodata),0.9*nrow(tomatodata))
+```
+
+```{r knn with random sample}
+library(class)
+set.seed(466)
+
+dat.d <- sample(1:nrow(tomatodata),size=nrow(tomatodata)*0.8,replace=FALSE)
+tomatodata_test_rand <- tomatodata[-dat.d,]
+tomatodata_train_rand <- tomatodata[dat.d,]
+
+train_rand <- tomatodata_train_rand[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                      "trust","negative","positive")]
+test_rand <- tomatodata_test_rand[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                    "trust","negative","positive")]
+
+train_target_rand <- tomatodata_train_rand[,"audience_higher"]
+test_target_rand <- tomatodata_test_rand[,"audience_higher"]
+
+
+pr_rand <- knn(train_rand,test_rand,cl=train_target_rand,k=11)
+tab_rand <- table(pr_rand,test_target_rand)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand)
+sen_rand <- tab_rand[2,2]/(tab_rand[2,2]+tab_rand[1,2])
+spec_rand <- tab_rand[1,1]/(tab_rand[1,1]+tab_rand[2,1])
+train_rat_rand <- (sum(train_target_rand==TRUE)/(length(train_target_rand)))
+test_rat_rand <- (sum(test_target_rand==TRUE)/(length(test_target_rand)))
+```
+
+```{r knn random prediction with action adventure}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand2 <- tomatodata_train_rand %>% filter(Action_Adventure == 1)
+tomatodata_test_rand2 <- tomatodata_test_rand %>% filter(Action_Adventure == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand2 <- tomatodata_train_rand2[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                        "trust","negative","positive")]
+test_rand2 <- tomatodata_test_rand2[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                      "trust","negative","positive")]
+
+train_target_rand2 <- tomatodata_train_rand2[,"audience_higher"]
+test_target_rand2 <- tomatodata_test_rand2[,"audience_higher"]
+
+
+pr_rand2 <- knn(train_rand2,test_rand2,cl=train_target_rand2,k=11)
+tab_rand2 <- table(pr_rand2,test_target_rand2)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand2)
+sen_rand2 <- tab_rand2[2,2]/(tab_rand2[2,2]+tab_rand2[1,2])
+spec_rand2 <- tab_rand2[1,1]/(tab_rand2[1,1]+tab_rand2[2,1])
+train_rat_rand2 <- (sum(train_target_rand2==TRUE)/(length(train_target_rand2)))
+test_rat_rand2 <- (sum(test_target_rand2==TRUE)/(length(test_target_rand2)))
+```
+
+```{r knn random prediction with Art house/ Intl}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand3 <- tomatodata_train_rand %>% filter(Art_House_International == 1)
+tomatodata_test_rand3 <- tomatodata_test_rand %>% filter(Art_House_International == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand3 <- tomatodata_train_rand3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                        "trust","negative","positive")]
+test_rand3 <- tomatodata_test_rand3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                      "trust","negative","positive")]
+
+train_target_rand3 <- tomatodata_train_rand3[,"audience_higher"]
+test_target_rand3 <- tomatodata_test_rand3[,"audience_higher"]
+
+
+pr_rand3 <- knn(train_rand3,test_rand3,cl=train_target_rand3,k=5)
+tab_rand3 <- table(pr_rand3,test_target_rand3)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand3)
+sen_rand3 <- tab_rand3[2,2]/(tab_rand3[2,2]+tab_rand3[1,2])
+spec_rand3 <- tab_rand3[1,1]/(tab_rand3[1,1]+tab_rand3[2,1])
+train_rat_rand3 <- (sum(train_target_rand3==TRUE)/(length(train_target_rand3)))
+test_rat_rand3 <- (sum(test_target_rand3==TRUE)/(length(test_target_rand3)))
+```
+
+```{r knn random prediction with Documentary}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand4 <- tomatodata_train_rand %>% filter(Documentary == 1)
+tomatodata_test_rand4 <- tomatodata_test_rand %>% filter(Documentary == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand4 <- tomatodata_train_rand4[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test_rand4 <- tomatodata_test_rand4[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target_rand4 <- tomatodata_train_rand4[,"audience_higher"]
+test_target_rand4 <- tomatodata_test_rand4[,"audience_higher"]
+
+
+pr_rand4 <- knn(train_rand4,test_rand4,cl=train_target_rand4,k=11)
+tab_rand4 <- table(pr_rand4,test_target_rand4)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand4)
+sen_rand4 <- tab_rand4[2,2]/(tab_rand4[2,2]+tab_rand4[1,2])
+spec_rand4 <- tab_rand4[1,1]/(tab_rand4[1,1]+tab_rand4[2,1])
+train_rat_rand4 <- (sum(train_target_rand4==TRUE)/(length(train_target_rand4)))
+test_rat_rand4 <- (sum(test_target_rand4==TRUE)/(length(test_target_rand4)))
+```
+
+```{r knn random prediction with Fiction}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand5 <- tomatodata_train_rand %>% filter(Science_Fiction_Fantasy == 1)
+tomatodata_test_rand5 <- tomatodata_test_rand %>% filter(Science_Fiction_Fantasy == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand5 <- tomatodata_train_rand5[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test_rand5 <- tomatodata_test_rand5[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target_rand5 <- tomatodata_train_rand5[,"audience_higher"]
+test_target_rand5 <- tomatodata_test_rand5[,"audience_higher"]
+
+
+pr_rand5 <- knn(train_rand5,test_rand5,cl=train_target_rand5,k=11)
+tab_rand5 <- table(pr_rand5,test_target_rand5)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand5)
+sen_rand5 <- tab_rand5[2,2]/(tab_rand5[2,2]+tab_rand5[1,2])
+spec_rand5 <- tab_rand5[1,1]/(tab_rand5[1,1]+tab_rand5[2,1])
+train_rat_rand5 <- (sum(train_target_rand5==TRUE)/(length(train_target_rand5)))
+test_rat_rand5 <- (sum(test_target_rand5==TRUE)/(length(test_target_rand5)))
+```
+
+```{r knn random prediction with Horror}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand6 <- tomatodata_train_rand %>% filter(Horror == 1)
+tomatodata_test_rand6 <- tomatodata_test_rand %>% filter(Horror == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand6 <- tomatodata_train_rand6[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test_rand6 <- tomatodata_test_rand6[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target_rand6 <- tomatodata_train_rand6[,"audience_higher"]
+test_target_rand6 <- tomatodata_test_rand6[,"audience_higher"]
+
+
+pr_rand6 <- knn(train_rand6,test_rand6,cl=train_target_rand6,k=11)
+tab_rand6 <- table(pr_rand6,test_target_rand6)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand6)
+sen_rand6 <- tab_rand6[2,2]/(tab_rand6[2,2]+tab_rand6[1,2])
+spec_rand6 <- tab_rand6[1,1]/(tab_rand6[1,1]+tab_rand6[2,1])
+train_rat_rand6 <- (sum(train_target_rand6==TRUE)/(length(train_target_rand6)))
+test_rat_rand6 <- (sum(test_target_rand6==TRUE)/(length(test_target_rand6)))
+```
+
+```{r knn random prediction with Mystery}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_train_rand7 <- tomatodata_train_rand %>% filter(Mystery_Suspense == 1)
+tomatodata_test_rand7 <- tomatodata_test_rand %>% filter(Mystery_Suspense == 1)
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand7 <- tomatodata_train_rand7[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+test_rand7 <- tomatodata_test_rand7[c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust","negative","positive")]
+
+train_target_rand7 <- tomatodata_train_rand7[,"audience_higher"]
+test_target_rand7 <- tomatodata_test_rand7[,"audience_higher"]
+
+
+pr_rand7 <- knn(train_rand7,test_rand7,cl=train_target_rand7,k=11)
+tab_rand7 <- table(pr_rand7,test_target_rand7)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand7)
+sen_rand7 <- tab_rand7[2,2]/(tab_rand7[2,2]+tab_rand7[1,2])
+spec_rand7 <- tab_rand7[1,1]/(tab_rand7[1,1]+tab_rand7[2,1])
+train_rat_rand7 <- (sum(train_target_rand7==TRUE)/(length(train_target_rand7)))
+test_rat_rand7 <- (sum(test_target_rand7==TRUE)/(length(test_target_rand7)))
+```
+
+```{r table graphic of knn predictions}
+# install.packages("kableExtra")
+library(kableExtra)
+
+knnpreds_rand <- matrix(c(accuracy(tab_rand),accuracy(tab_rand2),accuracy(tab_rand3), accuracy(tab_rand4),accuracy(tab_rand5),accuracy(tab_rand6), accuracy(tab_rand7),
+              sen_rand,sen_rand2,sen_rand3,sen_rand4,sen_rand5,sen_rand6,sen_rand7,
+              spec_rand,spec_rand2,spec_rand3,spec_rand4,spec_rand5,spec_rand6,spec_rand7,
+              train_rat_rand,train_rat_rand2,train_rat_rand3,train_rat_rand4,train_rat_rand5,train_rat_rand6,train_rat_rand7,
+              test_rat_rand,test_rat_rand2,test_rat_rand3,test_rat_rand4,test_rat_rand5,test_rat_rand6,test_rat_rand7),
+                
+                   ncol=5,nrow=7)
+rownames(knnpreds_rand) <- c("No Genre", "Action/Adv","Art House/Intl", "Documentary", "Fiction", "Horror","Mystery")
+colnames(knnpreds_rand) <- c("Accuracy","Sensitivity","Specificity","Train_Ratio","Test_Ratio")
+
+knntable_rand <- as.table(knnpreds_rand)
+
+knntable_rand %>%
+  kbl(caption = "KNN Sentiment Analysis, Predicting Audience Higher or Lower",digits=2) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r balancing dataset for knn with no genre}
+tomatodata_audience_higher <- subset(tomatodata, tomatodata$audience_higher == TRUE)
+tomatodata_critic_higher <- subset(tomatodata, tomatodata$critic_higher == TRUE)
+
+aud_sample <- sample(1:nrow(tomatodata_audience_higher),6622,replace=FALSE)
+crit_sample <- sample(1:nrow(tomatodata_critic_higher),6622,replace=FALSE)
+
+tomatodata_audience_higher <- tomatodata_audience_higher[aud_sample,]
+tomatodata_critic_higher <- tomatodata_critic_higher[crit_sample,]
+
+
+tomatodata_balanced <- rbind(tomatodata_audience_higher,tomatodata_critic_higher)
+
+tomatodata$audience_higher_adj <- (tomatodata$audience_rating - mean(tomatodata$audience_rating)) > (tomatodata$tomatometer_rating - mean(tomatodata$tomatometer_rating))
+
+```
+
+```{r knn with balanced dataset}
+library(class)
+set.seed(466)
+
+dat.db <- sample(1:nrow(tomatodata_balanced),size=nrow(tomatodata_balanced)*0.8,replace=FALSE)
+tomatodata_b_test_rand <- tomatodata_balanced[-dat.db,]
+tomatodata_b_train_rand <- tomatodata_balanced[dat.db,]
+
+# With this, prediction accuracy is at 97.5, which makes sense, since we already have the 
+# scores. The goal here is to predict WITHOUT the scores
+#train <- tomatodata_train[c("audience_rating","tomatometer_rating","sentiment_score")]
+#test <- tomatodata_test[c("audience_rating","tomatometer_rating","sentiment_score")]
+train_rand_b <- tomatodata_b_train_rand[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+test_rand_b <- tomatodata_b_test_rand[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                        "trust","negative","positive")]
+
+train_target_rand_b <- tomatodata_b_train_rand[,"audience_higher"]
+test_target_rand_b <- tomatodata_b_test_rand[,"audience_higher"]
+
+
+pr_rand_b <- knn(train_rand_b,test_rand_b,cl=train_target_rand_b,k=3)
+tab_rand_b <- table(pr_rand_b,test_target_rand_b)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b)
+sen_rand_b <- tab_rand_b[2,2]/(tab_rand_b[2,2]+tab_rand_b[1,2])
+spec_rand_b <- tab_rand_b[1,1]/(tab_rand_b[1,1]+tab_rand_b[2,1])
+train_rat_rand_b <- (sum(train_target_rand_b==TRUE)/(length(train_target_rand_b)))
+test_rat_rand_b <- (sum(test_target_rand_b==TRUE)/(length(test_target_rand_b)))
+
+```
+
+```{r normalizing functions}
+reduce_audHigher <- function(t){
+  if(sum(t$audience_higher==TRUE) > sum(t$audience_higher==FALSE)){
+   s <- sum(t$audience_higher == FALSE) 
+   t1 <- subset(t,t$audience_higher == TRUE)
+   t2 <- subset(t,t$audience_higher == FALSE)
+   sam <- sample(1:nrow(t1),nrow(t2),replace=FALSE)
+   t1 <- t1[sam,]
+   t3 <- rbind(t1,t2)
+   return(t1)
+  }
+}
+
+reduce_critHigher <- function(t){
+  if(sum(t$audience_higher==TRUE) < sum(t$audience_higher==FALSE)){
+   s <- sum(t$audience_higher == TRUE) 
+   t1 <- subset(t,t$audience_higher == TRUE)
+   t2 <- subset(t,t$audience_higher == FALSE)
+   sam <- sample(1:nrow(t2),nrow(t1),replace=FALSE)
+   t2 <- t2[sam,]
+   t3 <- rbind(t1,t2)
+   return(t1)
+  }
+}
+```
+
+```{r knn balanced random prediction with action adventure}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust2 <- tomatodata_balanced %>% filter(Action_Adventure == 1)
+
+tomatodata_adjust2$audience_higher_adj <- (tomatodata_adjust2$audience_rating - mean(tomatodata_adjust2$audience_rating) > (tomatodata_adjust2$tomatometer_rating - mean(tomatodata_adjust2$tomatometer_rating)))
+
+samp2 <- sample(1:nrow(tomatodata_adjust2),size=nrow(tomatodata_adjust2)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand2 <- tomatodata_adjust2[samp2,]
+tomatodata_b_test_rand2 <- tomatodata_adjust2[-samp2,]
+
+train_rand_b2 <- tomatodata_b_train_rand2[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b2 <- tomatodata_b_test_rand2[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b2 <- tomatodata_b_train_rand2[,"audience_higher_adj"]
+test_target_rand_b2 <- tomatodata_b_test_rand2[,"audience_higher_adj"]
+
+
+pr_rand_b2 <- knn(train_rand_b2,test_rand_b2,cl=train_target_rand_b2,k=1)
+tab_rand_b2 <- table(pr_rand_b2,test_target_rand_b2)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b2)
+sen_rand_b2 <- tab_rand_b2[2,2]/(tab_rand_b2[2,2]+tab_rand_b2[1,2])
+spec_rand_b2 <- tab_rand_b2[1,1]/(tab_rand_b2[1,1]+tab_rand_b2[2,1])
+train_rat_rand_b2 <- (sum(train_target_rand_b2==TRUE)/(length(train_target_rand_b2)))
+test_rat_rand_b2 <- (sum(test_target_rand_b2==TRUE)/(length(test_target_rand_b2)))
+```
+
+
+```{r knn balanced random prediction with Art house/ Intl}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust3 <- tomatodata_balanced %>% filter(Art_House_International == 1)
+
+tomatodata_adjust3$audience_higher_adj <- (tomatodata_adjust3$audience_rating - mean(tomatodata_adjust3$audience_rating) > (tomatodata_adjust3$tomatometer_rating - mean(tomatodata_adjust3$tomatometer_rating)))
+
+samp3 <- sample(1:nrow(tomatodata_adjust3),size=nrow(tomatodata_adjust3)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand3 <- tomatodata_adjust3[samp3,]
+tomatodata_b_test_rand3 <- tomatodata_adjust3[-samp3,]
+
+train_rand_b3 <- tomatodata_b_train_rand3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b3 <- tomatodata_b_test_rand3[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b3 <- tomatodata_b_train_rand3[,"audience_higher_adj"]
+test_target_rand_b3 <- tomatodata_b_test_rand3[,"audience_higher_adj"]
+
+pr_rand_b3 <- knn(train_rand_b3,test_rand_b3,cl=train_target_rand_b3,k=3)
+tab_rand_b3 <- table(pr_rand_b3,test_target_rand_b3)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b3)
+sen_rand_b3 <- tab_rand_b3[2,2]/(tab_rand_b3[2,2]+tab_rand_b3[1,2])
+spec_rand_b3 <- tab_rand_b3[1,1]/(tab_rand_b3[1,1]+tab_rand_b3[2,1])
+train_rat_rand_b3 <- (sum(train_target_rand_b3==TRUE)/(length(train_target_rand_b3)))
+test_rat_rand_b3 <- (sum(test_target_rand_b3==TRUE)/(length(test_target_rand_b3)))
+```
+
+```{r knn balanced random prediction with Fiction}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust4 <- tomatodata_balanced %>% filter(Science_Fiction_Fantasy == 1)
+
+tomatodata_adjust4$audience_higher_adj <- (tomatodata_adjust4$audience_rating - mean(tomatodata_adjust4$audience_rating) > (tomatodata_adjust4$tomatometer_rating - mean(tomatodata_adjust4$tomatometer_rating)))
+
+samp4 <- sample(1:nrow(tomatodata_adjust4),size=nrow(tomatodata_adjust4)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand4 <- tomatodata_adjust4[samp4,]
+tomatodata_b_test_rand4 <- tomatodata_adjust4[-samp4,]
+
+train_rand_b4 <- tomatodata_b_train_rand4[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b4 <- tomatodata_b_test_rand4[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b4 <- tomatodata_b_train_rand4[,"audience_higher_adj"]
+test_target_rand_b4 <- tomatodata_b_test_rand4[,"audience_higher_adj"]
+
+pr_rand_b4 <- knn(train_rand_b4,test_rand_b4,cl=train_target_rand_b4,k=3)
+tab_rand_b4 <- table(pr_rand_b4,test_target_rand_b4)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b4)
+sen_rand_b4 <- tab_rand_b4[2,2]/(tab_rand_b4[2,2]+tab_rand_b4[1,2])
+spec_rand_b4 <- tab_rand_b4[1,1]/(tab_rand_b4[1,1]+tab_rand_b4[2,1])
+train_rat_rand_b4 <- (sum(train_target_rand_b4==TRUE)/(length(train_target_rand_b4)))
+test_rat_rand_b4 <- (sum(test_target_rand_b4==TRUE)/(length(test_target_rand_b4)))
+
+```
+
+```{r knn balanced random prediction with Horror}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust5 <- tomatodata_balanced %>% filter(Horror == 1)
+
+tomatodata_adjust5$audience_higher_adj <- (tomatodata_adjust5$audience_rating - mean(tomatodata_adjust5$audience_rating) > (tomatodata_adjust5$tomatometer_rating - mean(tomatodata_adjust5$tomatometer_rating)))
+
+samp5 <- sample(1:nrow(tomatodata_adjust5),size=nrow(tomatodata_adjust5)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand5 <- tomatodata_adjust5[samp5,]
+tomatodata_b_test_rand5 <- tomatodata_adjust5[-samp5,]
+
+
+train_rand_b5 <- tomatodata_b_train_rand5[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b5 <- tomatodata_b_test_rand5[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b5 <- tomatodata_b_train_rand5[,"audience_higher_adj"]
+test_target_rand_b5 <- tomatodata_b_test_rand5[,"audience_higher_adj"]
+
+pr_rand_b5 <- knn(train_rand_b5,test_rand_b5,cl=train_target_rand_b5,k=1)
+tab_rand_b5 <- table(pr_rand_b5,test_target_rand_b5)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b5)
+sen_rand_b5 <- tab_rand_b5[2,2]/(tab_rand_b5[2,2]+tab_rand_b5[1,2])
+spec_rand_b5 <- tab_rand_b5[1,1]/(tab_rand_b5[1,1]+tab_rand_b5[2,1])
+train_rat_rand_b5 <- (sum(train_target_rand_b5==TRUE)/(length(train_target_rand_b5)))
+test_rat_rand_b5 <- (sum(test_target_rand_b5==TRUE)/(length(test_target_rand_b5)))
+```
+
+```{r knn balanced random prediction with Mystery}
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust6 <- tomatodata_balanced %>% filter(Mystery_Suspense == 1)
+
+tomatodata_adjust6$audience_higher_adj <- (tomatodata_adjust6$audience_rating - mean(tomatodata_adjust6$audience_rating) > (tomatodata_adjust6$tomatometer_rating - mean(tomatodata_adjust6$tomatometer_rating)))
+
+samp6 <- sample(1:nrow(tomatodata_adjust6),size=nrow(tomatodata_adjust6)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand6 <- tomatodata_adjust6[samp6,]
+tomatodata_b_test_rand6 <- tomatodata_adjust6[-samp6,]
+
+
+train_rand_b6 <- tomatodata_b_train_rand6[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b6 <- tomatodata_b_test_rand6[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b6 <- tomatodata_b_train_rand6[,"audience_higher_adj"]
+test_target_rand_b6 <- tomatodata_b_test_rand6[,"audience_higher_adj"]
+
+pr_rand_b6 <- knn(train_rand_b6,test_rand_b6,cl=train_target_rand_b6,k=5)
+tab_rand_b6 <- table(pr_rand_b6,test_target_rand_b6)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b6)
+sen_rand_b6 <- tab_rand_b6[2,2]/(tab_rand_b6[2,2]+tab_rand_b6[1,2])
+spec_rand_b6 <- tab_rand_b6[1,1]/(tab_rand_b6[1,1]+tab_rand_b6[2,1])
+train_rat_rand_b6 <- (sum(train_target_rand_b6==TRUE)/(length(train_target_rand_b6)))
+test_rat_rand_b6 <- (sum(test_target_rand_b6==TRUE)/(length(test_target_rand_b6)))
+```
+
+```{r knn balanced prediction with Documentary }
+library(class)
+set.seed(466)
+library(dplyr)
+
+tomatodata_adjust7 <- tomatodata_balanced %>% filter(Documentary == 1)
+
+tomatodata_adjust7$audience_higher_adj <- (tomatodata_adjust7$audience_rating - mean(tomatodata_adjust7$audience_rating) > (tomatodata_adjust7$tomatometer_rating - mean(tomatodata_adjust7$tomatometer_rating)))
+
+
+samp7 <- sample(1:nrow(tomatodata_adjust7),size=nrow(tomatodata_adjust7)*0.8,replace=FALSE)
+
+tomatodata_b_train_rand7 <- tomatodata_adjust7[samp7,]
+tomatodata_b_test_rand7 <- tomatodata_adjust7[-samp7,]
+
+train_rand_b7 <- tomatodata_b_train_rand7[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                            "trust","negative","positive")]
+test_rand_b7 <- tomatodata_b_test_rand7[c("anger","anticipation","disgust","fear","joy","sadness","surprise",
+                                          "trust","negative","positive")]
+
+train_target_rand_b7 <- tomatodata_b_train_rand7[,"audience_higher_adj"]
+test_target_rand_b7 <- tomatodata_b_test_rand7[,"audience_higher_adj"]
+
+pr_rand_b7 <- knn(train_rand_b7,test_rand_b7,cl=train_target_rand_b7,k=2)
+tab_rand_b7 <- table(pr_rand_b7,test_target_rand_b7)
+
+accuracy <- function(x) { sum(diag(x)/(sum(rowSums(x)))) * 100}
+
+accuracy(tab_rand_b7)
+sen_rand_b7 <- tab_rand_b7[2,2]/(tab_rand_b7[2,2]+tab_rand_b7[1,2])
+spec_rand_b7 <- tab_rand_b7[1,1]/(tab_rand_b7[1,1]+tab_rand_b7[2,1])
+train_rat_rand_b7 <- (sum(train_target_rand_b7==TRUE)/(length(train_target_rand_b7)))
+test_rat_rand_b7 <- (sum(test_target_rand_b7==TRUE)/(length(test_target_rand_b7)))
+```
+
+```{r knn balanced table}
+# install.packages("kableExtra")
+library(kableExtra)
+
+knnpreds_rand_b <- matrix(c(accuracy(tab_rand_b),accuracy(tab_rand_b2),accuracy(tab_rand_b3), accuracy(tab_rand_b7),accuracy(tab_rand_b4),accuracy(tab_rand_b5), accuracy(tab_rand_b6),
+              sen_rand_b,sen_rand_b2,sen_rand_b3,sen_rand_b7,sen_rand_b4,sen_rand_b5,sen_rand_b6,
+              spec_rand_b,spec_rand_b2,spec_rand_b3,spec_rand_b7,spec_rand_b4,spec_rand_b5,spec_rand_b6,
+              train_rat_rand_b,train_rat_rand_b2,train_rat_rand_b3,train_rat_rand_b7,train_rat_rand_b4,train_rat_rand_b5,train_rat_rand_b6,
+              test_rat_rand_b,test_rat_rand_b2,test_rat_rand_b3,test_rat_rand_b7,test_rat_rand_b4,test_rat_rand_b5,test_rat_rand_b6),
+                
+                   ncol=5,nrow=7)
+rownames(knnpreds_rand_b) <- c("No Genre", "Action/Adv","Art House/Intl", "Documentary", "Fiction", "Horror","Mystery")
+colnames(knnpreds_rand_b) <- c("Accuracy","Sensitivity","Specificity","Train Ratio","Test Ratio")
+
+knntable_rand_b <- as.table(knnpreds_rand_b)
+
+knntable_rand_b %>%
+  kbl(caption = "KNN Sentiment Analysis, Predicting Audience Higher or Lower",digits=2) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
